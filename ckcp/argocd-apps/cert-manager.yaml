@@ -10,8 +10,8 @@ spec:
     server: https://kubernetes.default.svc
   source:
     path: ckcp/openshift-operators/cert-manager
-    repoURL: https://github.com/openshift-pipelines/pipelines-service.git
-    targetRevision: main
+    repoURL: https://github.com/XinRedhat/pipelines-service.git
+    targetRevision: argocd_cert-manager
   project: default
   syncPolicy:
 

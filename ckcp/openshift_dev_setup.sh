@@ -161,11 +161,8 @@ install_cert_manager() {
   kubectl apply -f "$CKCP_DIR/argocd-apps/$APP.yaml" >/dev/null 2>&1
   argocd app wait "$APP" >/dev/null 2>&1
   # Check cert manager pods until they are ready
-  while [ "$(kubectl -n openshift-cert-manager get pods --field-selector=status.phase=Running 2>/dev/null | grep -c cert-manager)" != 3 ]
-  do
-    echo -n "."
-    sleep 5
-  done
+  # Wait until cert manager is ready
+  kubectl cert-manager check api --wait=5m  >/dev/null 2>&1
   echo "OK"
 }
 
