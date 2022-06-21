@@ -177,7 +177,6 @@ install_cert_manager() {
   # Wait until cert-manager is ready
   pods_cmd="kubectl -n openshift-cert-manager get pods -o=jsonpath='{range .items[*]}{.metadata.name}{\" \"}{.status.containerStatuses[*].ready}{\"\n\"}{end}'"
   until [[ $(eval $pods_cmd | wc -l) -eq 3 ]]; do 
-    echo "."
     sleep 10
   done
   echo "OK"
