@@ -6,15 +6,20 @@ on:
       - main
 
 jobs:
-  e2e-shared-server:
-    name: e2e-shared-server
+  local-test:
+    name: local-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v3
         with:
           go-version: v1.17
 
-      - uses: actions/checkout@v3
+      - uses: azure/setup-kubectl@v3
+        with:
+          version: v1.23.3
+        
+      - name: Checkout kcp repository
+        uses: actions/checkout@v3
         with:
           repository: kcp-dev/kcp
           ref: release-0.6
@@ -27,10 +32,23 @@ jobs:
       - uses: container-tools/kind-action@v1
         name: Kubernetes KinD Cluster w/local registry
 
-      - uses: actions/checkout@v3
-      - name: Test local setup
+      - name: Checkout pipeline-service repository
+        uses: actions/checkout@v3
+      - name: Set up Kubernetes workload clusters
         run: |-
           ./local/kind/setup.sh
 
-      - run: |-
-          ./local/kcp/start.sh
+      - name: Set up a kcp cluster.
+        run: |-
+          nohup ./local/kcp/start.sh > nohup.out &
+          i=0
+          while ! grep "ctrl-C" nohup.out >/dev/null; do
+            sleep 5
+            i=$((i+1))
+            if [ $i -gt 70 ]; then
+              printf "Failed to set up a kcp cluster\n"
+              cat nohup.out
+              exit 1
+            fi
+          done
+          cat nohup.out
