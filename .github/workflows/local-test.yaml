@@ -6,14 +6,18 @@ on:
       - main
 
 jobs:
-  e2e-shared-server:
-    name: e2e-shared-server
+  local-test:
+    name: local-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-go@v3
         with:
           go-version: v1.17
 
+      - uses: azure/setup-kubectl@v3
+        with:
+          version: v1.23.3
+        
       - uses: actions/checkout@v3
         with:
           repository: kcp-dev/kcp
@@ -33,4 +37,15 @@ jobs:
           ./local/kind/setup.sh
 
       - run: |-
-          ./local/kcp/start.sh
+          nohup ./local/kcp/start.sh > nohup.out &
+          i=0
+          while ! grep "ctrl-C" nohup.out >/dev/null; do
+            cat nohup.out
+            sleep 5
+            i=$((i+1))
+            if [ $i -gt 60 ]; then
+              printf "Failed to start kcp cluster\n"
+              exit 1
+            fi
+          done
+          echo "Done"
