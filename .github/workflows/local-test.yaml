@@ -38,7 +38,7 @@ jobs:
           ./local/kind/setup.sh
 
       - run: |-
-          nohup ./local/kcp/start.sh &
+          nohup ./local/kcp/start.sh > nohup.out &
           i=0
           while ! grep "ctrl-C" nohup.out >/dev/null; do
             cat nohup.out
