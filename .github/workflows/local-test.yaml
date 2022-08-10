@@ -27,6 +27,7 @@ jobs:
           go mod vendor
           make install
           kubectl-kcp --version
+          kubectl version --client=true
       # Install kind with a local registry
       - uses: container-tools/kind-action@v1
         name: Kubernetes KinD Cluster w/local registry
