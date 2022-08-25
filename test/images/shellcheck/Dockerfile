@@ -18,7 +18,8 @@ WORKDIR /
 RUN mkdir /workspace && chmod 777 /workspace && chown 65532:65532 /workspace
 ENV HOME /tmp/home
 RUN mkdir $HOME && chmod 777 $HOME && chown 65532:65532 $HOME
-RUN microdnf install tar xz findutils
+RUN microdnf install -y tar-1.30 xz-5.2.4 findutils-4.6.0 && microdnf clean all
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 RUN SHELLCHECK_VERSION=0.7.1 && \
     curl --fail -sSL  https://github.com/koalaman/shellcheck/releases/download/v$SHELLCHECK_VERSION/shellcheck-v$SHELLCHECK_VERSION.linux.x86_64.tar.xz | tar -xJvf - shellcheck-v$SHELLCHECK_VERSION/shellcheck && \
     mv shellcheck-v$SHELLCHECK_VERSION/shellcheck /usr/local/bin/shellcheck && \
