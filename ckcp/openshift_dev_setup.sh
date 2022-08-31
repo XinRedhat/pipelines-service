@@ -156,7 +156,7 @@ install_openshift_gitops() {
   # Install the gitops operator
   #############################################################################
   echo -n "  - OpenShift-GitOps: "
-  kubectl apply -k "$CKCP_DIR/openshift-operators/$APP" >/dev/null 2>&1
+  kubectl apply -k "$CKCP_DIR/openshift-operators/$APP" >/dev/null
   echo "OK"
 
   #############################################################################
@@ -180,14 +180,14 @@ install_openshift_gitops() {
   echo -n "  - ArgoCD Login: "
   local argocd_password
   argocd_password="$(kubectl get secret openshift-gitops-cluster -n $ns -o jsonpath="{.data.admin\.password}" | base64 --decode)"
-  argocd login "$ARGOCD_HOSTNAME" --grpc-web --insecure --username admin --password "$argocd_password" >/dev/null 2>&1
+  argocd login "$ARGOCD_HOSTNAME" --grpc-web --insecure --username admin --password "$argocd_password" >/dev/null
   echo "OK"
 
   # Register the host cluster as pipeline-cluster
   local cluster_name="plnsvc"
   echo -n "  - Register host cluster to ArgoCD as '$cluster_name': "
-  if ! KUBECONFIG="$KUBECONFIG_MERGED" argocd cluster get "$cluster_name" >/dev/null 2>&1; then
-    argocd cluster add "$(yq e ".current-context" <"$KUBECONFIG")" --name="$cluster_name" --upsert --yes >/dev/null 2>&1
+  if ! KUBECONFIG="$KUBECONFIG_MERGED" argocd cluster get "$cluster_name" >/dev/null; then
+    argocd cluster add "$(yq e ".current-context" <"$KUBECONFIG")" --name="$cluster_name" --upsert --yes >/dev/null
   fi
   echo "OK"
 }
@@ -195,7 +195,7 @@ install_openshift_gitops() {
 install_cert_manager(){
   APP="cert-manager-operator"
   echo -n "  - OpenShift-Cert-Manager: "
-  kubectl apply -f "$GITOPS_DIR/argocd/argo-apps/$APP.yaml" >/dev/null 2>&1
+  kubectl apply -f "$GITOPS_DIR/argocd/argo-apps/$APP.yaml" >/dev/null
   check_cert_manager
 }
 
@@ -204,7 +204,7 @@ check_cert_manager() {
   # Certificate resource in order to verify that CRDs are installed and all the
   # required webhooks are reachable by the K8S API server.
   local i=0
-  until kubectl create -f "$CKCP_DIR/openshift/base/certs.yaml" --dry-run=client >/dev/null 2>&1; do
+  until kubectl create -f "$CKCP_DIR/openshift/base/certs.yaml" --dry-run=client >/dev/null; do
     echo -n "."
     sleep 5
     i=$((i+1))
@@ -265,9 +265,9 @@ patches:
         value: $ckcp_route " >>"$ckcp_temp_dir/kustomization.yaml"
 
   echo -n "  - kcp $kcp_version: "
-  kubectl apply -k "$ckcp_temp_dir" >/dev/null 2>&1
+  kubectl apply -k "$ckcp_temp_dir" >/dev/null
   # Check if ckcp pod status is Ready
-  kubectl wait --for=condition=Ready -n $ns pod -l=app=kcp-in-a-pod --timeout=90s >/dev/null 2>&1
+  kubectl wait --for=condition=Ready -n $ns pod -l=app=kcp-in-a-pod --timeout=90s >/dev/null
   # Clean up kustomize temp dir
   rm -rf "$ckcp_temp_dir"
 
@@ -278,11 +278,11 @@ patches:
   podname="$(kubectl get pods --ignore-not-found -n "$ns" -l=app=kcp-in-a-pod -o jsonpath='{.items[0].metadata.name}')"
   mkdir -p "$(dirname "$KUBECONFIG_KCP")"
   # Wait until admin.kubeconfig file is generated inside ckcp pod
-  while [[ $(kubectl exec -n $ns "$podname" -- ls /etc/kcp/config/admin.kubeconfig >/dev/null 2>&1; echo $?) -ne 0 ]]; do
+  while [[ $(kubectl exec -n $ns "$podname" -- ls /etc/kcp/config/admin.kubeconfig >/dev/null; echo $?) -ne 0 ]]; do
     echo -n "."
     sleep 5
   done
-  kubectl cp "$ns/$podname:/etc/kcp/config/admin.kubeconfig" "$KUBECONFIG_KCP" >/dev/null 2>&1
+  kubectl cp "$ns/$podname:/etc/kcp/config/admin.kubeconfig" "$KUBECONFIG_KCP" >/dev/null
   echo "OK"
 
   # Check if external ip is assigned and replace kcp's external IP in the kubeconfig file
