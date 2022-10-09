@@ -18,6 +18,11 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+SCRIPT_DIR="$(
+  cd "$(dirname "$0")" >/dev/null
+  pwd
+)"
+
 usage() {
 
     printf "
@@ -39,7 +44,7 @@ Mandatory arguments:
     --kcp-sync-tag KCP_SYNC_TAG
         Tag of the kcp syncer image to use (preset in the container image at build time
         and leveraged by the PipelineRun).
-        Example: 'v0.9.0'
+        Example: 'v0.8.2'
         Can be set through \$KCP_SYNC_TAG.
 
 Optional arguments:
@@ -51,14 +56,14 @@ Optional arguments:
         variable is unset.
     -s, --crs-to-sync
         A comma separated list of Custom Resources to sync with kcp.
-        Default: deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,repositories.pipelinesascode.tekton.dev
+        Default: deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io
     -d, --debug
         Activate tracing/debug mode.
     -h, --help
         Display this message.
 
 Example:
-    KCP_SYNC_TAG='v0.9.0' %s --kcp-org 'root:my_org' --kcp-workspace 'my_workspace' --workspace_dir /path/to/my_dir
+    KCP_SYNC_TAG='v0.8.2' %s --kcp-org 'root:my_org' --kcp-workspace 'my_workspace' --workspace_dir /path/to/my_dir
 " "${0##*/}" "${0##*/}" >&2
 }
 
@@ -135,7 +140,7 @@ prechecks() {
         exit_error "WORKSPACE_DIR not set\n\n"
     fi
 
-    CRS_TO_SYNC="${CRS_TO_SYNC:-deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,repositories.pipelinesascode.tekton.dev}"
+    CRS_TO_SYNC="${CRS_TO_SYNC:-deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io}"
 
     WORKSPACE_DIR="$(cd "$WORKSPACE_DIR" >/dev/null && pwd)" || exit_error "WORKSPACE_DIR '$WORKSPACE_DIR' cannot be accessed\n\n"
 }
@@ -218,13 +223,11 @@ register_cluster() {
             --syncer-image "ghcr.io/kcp-dev/kcp/syncer:$KCP_SYNC_TAG" \
             --resources "$CRS_TO_SYNC"\
             --output-file "$syncer_manifest"
+        # Set a restricted security context
+        patch="$(dirname "$SCRIPT_DIR")/data/syncer-patch.yaml" yq -i \
+          'select(.kind == "Deployment").spec.template.spec.containers[0].securityContext |= load(strenv(patch))' \
+          "$syncer_manifest"
         add_ca_cert_to_syncer_manifest "${kcp_kcfg}" "$syncer_manifest"
-        # Add annotations required by kcp-glbc
-        # Commenting the below line, which adds an annotation, as this is causing issues with the syncer being unable to sync the status from synctarget back to the kcp workspace.
-        # Issue being tracked here - https://github.com/kcp-dev/kcp/issues/2147
-#        KUBECONFIG="${kcp_kcfg}" kubectl annotate --overwrite synctarget "${sync_target_name}" featuregates.experimental.workload.kcp.dev/advancedscheduling='true'
-        KUBECONFIG="${kcp_kcfg}" kubectl label --overwrite synctarget "${sync_target_name}" kuadrant.dev/synctarget="${sync_target_name}"
-
         KUBECONFIG="${WORKSPACE_DIR}/credentials/kubeconfig/compute/${kubeconfigs[$i]}" kubectl apply \
             --context "${contexts[$i]}" -f "$syncer_manifest"
 }
@@ -238,12 +241,7 @@ add_ca_cert_to_syncer_manifest() {
     host="$(KUBECONFIG="${config}" kubectl config view --minify | yq '.clusters[0].cluster.server' | cut -d/ -f3)"
     # hostname may include port number, remove it if it's there
     servername="$(echo "$host" | cut -d: -f1)"
-    # https://stackoverflow.com/a/46464081
-    base64_wrap_flag_name="--wrap"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        base64_wrap_flag_name="--break"
-    fi
-    ca_cert="$(openssl s_client -showcerts -servername "${servername}" -connect "${host}" </dev/null 2>/dev/null | openssl x509 | base64 $base64_wrap_flag_name 0)"
+    ca_cert="$(openssl s_client -showcerts -servername "${servername}" -connect "${host}" </dev/null 2>/dev/null | openssl x509 | base64 -w 0)"
     ca_cert="${ca_cert}" yq -i '(select(.stringData.kubeconfig != null)) .stringData.kubeconfig |= (fromyaml | .clusters[].cluster."certificate-authority-data" = env(ca_cert) | to_yaml)' "${manifest}"
 }
 
