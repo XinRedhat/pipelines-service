@@ -39,7 +39,7 @@ spec:
         - name: image
           value: "quay.io/openshift-release-dev/ocp-release:4.12.2-x86_64"
         - name: region
-          value: "us-east-1"
+          value: "us-west-2"
         - name: cluster-name
           value: "$(tasks.generate-cluster-name.results.cluster-name)"
         - name: target_branch
