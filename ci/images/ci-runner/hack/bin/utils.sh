@@ -39,6 +39,7 @@ open_bitwarden_session() {
     fi
   
     login_status=$(bw login --check 2>&1)
+    echo "$login_status"
     if [ "$login_status" = "You are not logged in." ]; then
       printf "Error while logging into Bitwarden.\n" >&2 | indent 2
       return
