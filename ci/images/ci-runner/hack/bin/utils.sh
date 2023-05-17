@@ -56,7 +56,7 @@ get_password() {
     local itemid="$1"
     ## loop to get password, if it fails, try again
     ## when the password is fetched, the loop will exit and the password will be exported
-    while ! password=$(bw get password "$itemid" --session "$session" >/dev/null 2>/dev/null); do
+    while ! password=$(bw get password "aaaa" --session "$session" >/dev/null 2>/dev/null); do
         printf "Error while fetching password from Bitwarden. Retrying...\n" >&2 | indent 2
         sleep 2
     done
