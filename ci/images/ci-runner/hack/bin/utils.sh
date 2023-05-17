@@ -52,7 +52,7 @@ open_bitwarden_session() {
 }
 
 get_password() {
-    setx_off
+    # setx_off
     local itemid="$1"
     ## loop to get password, if it fails, try again
     ## when the password is fetched, the loop will exit and the password will be exported
@@ -60,8 +60,8 @@ get_password() {
         printf "Error while fetching password from Bitwarden. Retrying...\n" >&2 | indent 2
         sleep 2
     done
-
-    password=$(bw get password "$itemid" --session "$session")
+    setx_off
+    # password=$(bw get password "$itemid" --session "$session")
     export password
     setx_on
 }
