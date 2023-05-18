@@ -9,41 +9,46 @@ SCRIPT_DIR="$(
   pwd
 )"
 
-# shellcheck source=ci/images/ci-runner/hack/bin/utils.sh
-source "$SCRIPT_DIR/utils.sh"
+is_cluster_expired() {
+    MAX_DURATION_MINS=120
 
-MAX_DURATION_MINS=120
-EXCLUDE_CLUSTER=(local-cluster)
-
-delete_cluster() {
-    cluster_name="$1"
-    # if hostedcluster doesn't exist, skip
+    local cluster_name="$1"
+    
+    # If hostedcluster doesn't exist, skip
     if ! kubectl get hostedcluster -n clusters "$cluster_name" > /dev/null 2>&1; then
-        return
+        return 1
     fi
+    
+    local deletionTimestamp
     deletionTimestamp=$(kubectl get hostedcluster -n clusters "$cluster_name" -o json \
-        | jq -r '.metadata.deletionTimestamp?'
-    )
-
-    # If the the cluster has "deletionTimestamp" metadata, it means the cluster is triggered deletion
-    if [ -z "$deletionTimestamp" ]; then
-        return
+        | jq -r '.metadata.deletionTimestamp?')
+    
+    # If the cluster has "deletionTimestamp" metadata, it means the cluster is triggered for deletion
+    if [ -n "$deletionTimestamp" ]; then
+        return 1
     fi
-    # If the cluster is older than $MAX_DURATION_MINS mins, it will be deleted
+    
+    local creationTime
     creationTime=$(kubectl -n clusters get hostedcluster "$cluster_name" -o json | jq -r '.metadata.creationTimestamp')
-    durations_mins=$((($(date +%s) - $(date +%s -d "$creationTime")) / 60))
-    if [ "$durations_mins" -gt "$MAX_DURATION_MINS" ]; then
-        echo "Start delete cluster $cluster_name"
-        open_bitwarden_session
-        get_aws_credentials
-        hypershift destroy cluster aws --aws-creds "$AWS_CREDENTIALS"  --name "$cluster_name"
+    local duration_mins=$(( ( $(date +%s) - $(date +%s -d "$creationTime") ) / 60 ))
+    
+    # If the cluster is older than $MAX_DURATION_MINS mins, it is considered expired
+    if [ "$duration_mins" -gt "$MAX_DURATION_MINS" ]; then
+        return 0
     fi
+    
+    return 1
 }
+
+EXCLUDE_CLUSTER=(local-cluster)
 
 mapfile -t clusters < <(kubectl get hostedcluster -n clusters -o=custom-columns=NAME:.metadata.name --no-headers)
 for cluster in "${clusters[@]}"; do
     if [[ "${EXCLUDE_CLUSTER[*]}" =~ $cluster ]]; then
         continue
     fi
-    delete_cluster "$cluster"
+    # if the cluster is expired, destroy it
+    if is_cluster_expired "$cluster"; then
+        "$SCRIPT_DIR"/destroy-clusters.sh "$cluster"
+    fi
 done

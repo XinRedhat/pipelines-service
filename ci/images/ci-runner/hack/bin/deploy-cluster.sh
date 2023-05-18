@@ -8,8 +8,8 @@ SCRIPT_DIR="$(
   pwd
 )"
 
-# shellcheck source=ci/images/ci-runner/hack/bin/utils.sh
-source "$SCRIPT_DIR/utils.sh"
+# shellcheck source=ci/images/ci-runner/hack/bin/bitwarden.sh
+source "$SCRIPT_DIR/bitwarden.sh"
 
 fetch_bitwarden_secrets() {
     printf "Fetch secrets from bitwarden server\n" | indent 2

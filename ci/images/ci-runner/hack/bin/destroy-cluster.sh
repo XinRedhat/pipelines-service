@@ -26,15 +26,39 @@ if [ -e "$PWD/destroy-cluster.txt" ]; then
     fi
 fi
 
-# shellcheck source=ci/images/ci-runner/hack/bin/utils.sh
-source "$SCRIPT_DIR/utils.sh"
+# shellcheck source=ci/images/ci-runner/hack/bin/bitwarden.sh
+source "$SCRIPT_DIR/bitwarden.sh"
 
-if [[ -n "$CLUSTER_NAME"  ]]; then
-    echo "Started to destroy cluster [$CLUSTER_NAME]..."
+destroy_cluster() {
+    cluster_name="$1"
+    echo "Started to destroy cluster [$cluster_name]..."
     open_bitwarden_session
     get_aws_credentials
-    hypershift destroy cluster aws --aws-creds "$AWS_CREDENTIALS"  --name "$CLUSTER_NAME"
-    echo "Successfully destroyed cluster"
+
+    # Set maximum number of retry attempts
+    max_retries=5
+    retries=0
+
+    # Loop for retrying cluster destruction
+    while true; do
+        if hypershift destroy cluster aws --aws-creds "$AWS_CREDENTIALS" --name "$cluster_name"; then
+            echo "Successfully destroyed cluster [$cluster_name]"
+            break  # Exit the loop if cluster destruction succeeds
+        else
+            retries=$((retries+1))
+            if [[ $retries -gt $max_retries ]]; then
+                printf "Error: Hypershift cluster failed to be destroyed after %d retries.\n" "$max_retries"
+                exit 1
+            else
+                printf "Retrying...\n"
+                sleep 2
+            fi
+        fi
+    done
+}
+
+if [[ -n "$CLUSTER_NAME" ]]; then
+    destroy_cluster "$CLUSTER_NAME"
 else
-    echo "No OCP cluster need to be destroyed."
+    echo "No OCP cluster needs to be destroyed."
 fi

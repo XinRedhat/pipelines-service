@@ -14,8 +14,8 @@ PROJECT_DIR="$(
   pwd
 )"
 
-# shellcheck source=ci/images/ci-runner/hack/bin/utils.sh
-source "$PROJECT_DIR/ci/images/ci-runner/hack/bin/utils.sh"
+# shellcheck source=ci/images/ci-runner/hack/bin/bitwarden.sh
+source "$PROJECT_DIR/ci/images/ci-runner/hack/bin/bitwarden.sh"
 
 export_variables() {
   printf "Export variables\n" | indent 2
