@@ -9,7 +9,7 @@ spec:
       description: Openshift cluster name
   steps:
     - name: generate-cluster-name
-      image: registry.access.redhat.com/ubi9/openssl:9.1-2
+      image: registry.access.redhat.com/ubi9/openssl:9.3-14
       script: |
         #!/usr/bin/env bash
         set -o errexit
